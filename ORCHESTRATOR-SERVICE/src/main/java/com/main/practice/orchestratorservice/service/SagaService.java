@@ -6,79 +6,101 @@ import com.main.practice.orchestratorservice.dto.TransferRequestDto;
 import com.main.practice.orchestratorservice.entities.SagaStatus;
 import com.main.practice.orchestratorservice.entities.SagaTransaction;
 import com.main.practice.orchestratorservice.repositories.SagaTransactionRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+
 @Service
+@RequiredArgsConstructor
 public class SagaService {
-    @Autowired
-    private WalletAClient walletA;
-    @Autowired
-    private WalletBClient walletB;
-    @Autowired private SagaTransactionRepository repo;
+
+    private final WalletAClient walletA;
+
+    private final WalletBClient walletB;
+
+
+    private final SagaTransactionRepository repo;
 
     public String processTransaction(TransferRequestDto request) {
 
-        // 1. PERSIST STATE: Save the full DTO context to DB
         SagaTransaction tx = new SagaTransaction();
         tx.setSenderUsername(request.getSenderUsername());
-        tx.setSenderService(request.getSenderService()); // Saved!
+        tx.setSenderService(request.getSenderService());
         tx.setReceiverUsername(request.getReceiverUsername());
         tx.setReceiverService(request.getReceiverService());
-        tx.setAmount(request.getAmount().doubleValue());
+        tx.setAmount(request.getAmount());
         tx.setStatus(SagaStatus.STARTED);
 
-        SagaTransaction savedTx = repo.save(tx); // <--- ID generated here
+        SagaTransaction savedTx = repo.save(tx);
 
         try {
-            // ... PHASE 1: DEBIT ...
-            if ("A".equalsIgnoreCase(request.getSenderService())) {
-                walletA.debit(request.getSenderUsername(), request.getAmount());
-            } else {
-                walletB.debit(request.getSenderUsername(), request.getAmount());
-            }
-
+            debitSender(savedTx);
             savedTx.setStatus(SagaStatus.DEBIT_COMPLETED);
             repo.save(savedTx);
-
-
-            //Thread.sleep(15000);
-
         } catch (Exception e) {
             savedTx.setStatus(SagaStatus.FAILED);
             repo.save(savedTx);
-            return "Failed at Debit.";
+            return "Failed at Debit";
         }
 
         try {
-            // ... PHASE 2: CREDIT ...
-            if ("A".equalsIgnoreCase(request.getReceiverService())) {
-                walletA.credit(request.getReceiverUsername(), request.getAmount());
-            } else {
-                walletB.credit(request.getReceiverUsername(), request.getAmount());
-            }
+            creditReceiver(savedTx);
             savedTx.setStatus(SagaStatus.COMPLETED);
             repo.save(savedTx);
-            return "Transaction Successful!";
-
+            return "Transaction Successful";
         } catch (Exception e) {
-            // ... COMPENSATION ...
-            System.out.println("Credit Failed. Rolling back...");
-
-            // Refund logic calls the clients...
-            performRefund(request);
-
+            refundSender(savedTx);
             savedTx.setStatus(SagaStatus.REFUNDED);
             repo.save(savedTx);
-            return "Transaction Failed: Rolled Back.";        }
-
-
+            return "Transaction Failed: Rolled Back";
+        }
     }
-    private void performRefund(TransferRequestDto request) {
-        if ("A".equalsIgnoreCase(request.getSenderService())) {
-            walletA.refund(request.getSenderUsername(), request.getAmount());
+
+    private void debitSender(SagaTransaction tx) {
+        if ("A".equalsIgnoreCase(tx.getSenderService())) {
+            walletA.debit(
+                    tx.getSenderUsername(),
+                    (tx.getAmount()),
+                    tx.getId()
+            );
         } else {
-            walletB.refund(request.getSenderUsername(), request.getAmount());
+            walletB.debit(
+                    tx.getSenderUsername(),
+                    (tx.getAmount()),
+                    tx.getId()
+            );
+        }
+    }
+
+    private void creditReceiver(SagaTransaction tx) {
+        if ("A".equalsIgnoreCase(tx.getReceiverService())) {
+            walletA.credit(
+                    tx.getReceiverUsername(),
+                    (tx.getAmount()),
+                    tx.getId()
+            );
+        } else {
+            walletB.credit(
+                    tx.getReceiverUsername(),
+                    (tx.getAmount()),
+                    tx.getId()
+            );
+        }
+    }
+
+    private void refundSender(SagaTransaction tx) {
+        if ("A".equalsIgnoreCase(tx.getSenderService())) {
+            walletA.refund(
+                    tx.getSenderUsername(),
+                    (tx.getAmount()),
+                    tx.getId()
+            );
+        } else {
+            walletB.refund(
+                    tx.getSenderUsername(),
+                    (tx.getAmount()),
+                    tx.getId()
+            );
         }
     }
 }

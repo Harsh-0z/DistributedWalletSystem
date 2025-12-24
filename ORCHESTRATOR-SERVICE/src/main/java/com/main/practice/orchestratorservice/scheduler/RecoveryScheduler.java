@@ -9,7 +9,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -33,9 +32,9 @@ public class RecoveryScheduler {
             try {
                 // DIRECTLY use the saved info. No lookup needed.
                 if ("A".equalsIgnoreCase(tx.getSenderService())) {
-                    walletA.refund(tx.getSenderUsername(), BigDecimal.valueOf(tx.getAmount()));
+                    walletA.refund(tx.getSenderUsername(), (tx.getAmount()), tx.getId());
                 } else {
-                    walletB.refund(tx.getSenderUsername(), BigDecimal.valueOf(tx.getAmount()));
+                    walletB.refund(tx.getSenderUsername(), (tx.getAmount()), tx.getId());
                 }
 
                 tx.setStatus(SagaStatus.REFUNDED);

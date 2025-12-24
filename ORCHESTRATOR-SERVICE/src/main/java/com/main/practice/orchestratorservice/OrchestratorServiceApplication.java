@@ -14,6 +14,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 public class OrchestratorServiceApplication {
 
+    // issue idempotency(doing one thing multiple time effect same)
+    //solved
     public static void main(String[] args) {
         SpringApplication.run(OrchestratorServiceApplication.class, args);
     }

@@ -4,6 +4,8 @@ package com.main.practice.orchestratorservice.entities;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -23,7 +25,7 @@ public class SagaTransaction {
     private String receiverUsername;
     private String receiverService; // "A" or "B"
 
-    private Double amount;
+    private BigDecimal amount;
 
     @Enumerated(EnumType.STRING)
     private SagaStatus status; // STARTED, DEBIT_COMPLETED, FAILED, REFUNDED, COMPLETED
